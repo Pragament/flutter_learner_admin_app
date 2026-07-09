@@ -1,0 +1,154 @@
+{
+  "project_info": {
+    "project_number": "193864081571",
+    "project_id": "edutrack-admin",
+    "storage_bucket": "edutrack-admin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193864081571:android:6b1fc46be5fc93c7e61f16",
+        "android_client_info": {
+          "package_name": "com.example.edutrack_admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4dI8nKu8-3_BVA-M47d5nL3wp5VQndlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "193864081571-19g5ftl01jr8jqrckp70pamofvvcutsg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.parentsApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193864081571:android:8ba4302811ebe276e61f16",
+        "android_client_info": {
+          "package_name": "com.example.omr_admin_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4dI8nKu8-3_BVA-M47d5nL3wp5VQndlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "193864081571-19g5ftl01jr8jqrckp70pamofvvcutsg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.parentsApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193864081571:android:c4cdabed3577149fe61f16",
+        "android_client_info": {
+          "package_name": "com.example.omr_parent_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4dI8nKu8-3_BVA-M47d5nL3wp5VQndlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "193864081571-19g5ftl01jr8jqrckp70pamofvvcutsg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.parentsApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193864081571:android:e90811579dfe0fbce61f16",
+        "android_client_info": {
+          "package_name": "com.example.parents_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4dI8nKu8-3_BVA-M47d5nL3wp5VQndlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193864081571-uj4m1e3c1pnjevv3g35gc94a48u5fkd7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "193864081571-19g5ftl01jr8jqrckp70pamofvvcutsg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.parentsApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
