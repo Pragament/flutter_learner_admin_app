@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/school.dart';
 import '../services/auth_service.dart';
+import '../utils/section_utils.dart';
 
 class ClassSectionsScreen extends StatefulWidget {
   final School school;
@@ -338,15 +339,6 @@ class _ClassSectionsScreenState extends State<ClassSectionsScreen> {
     bool saving = false;
     String? error;
 
-    void autoFill(StateSetter setDlg) {
-      final g = gradeCtrl.text.trim();
-      final s = sectionCtrl.text.trim().toUpperCase();
-      if (g.isNotEmpty && s.isNotEmpty) {
-        fullNameCtrl.text = '$g-$s';
-        setDlg(() {});
-      }
-    }
-
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -373,7 +365,6 @@ class _ClassSectionsScreenState extends State<ClassSectionsScreen> {
                     hintText: 'e.g. 4',
                     border: OutlineInputBorder(),
                   ),
-                  onChanged: (_) => autoFill(setDlg),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -384,16 +375,15 @@ class _ClassSectionsScreenState extends State<ClassSectionsScreen> {
                     hintText: 'e.g. B',
                     border: OutlineInputBorder(),
                   ),
-                  onChanged: (_) => autoFill(setDlg),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: fullNameCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Full Name *',
-                    hintText: 'e.g. 4-B',
+                    hintText: 'e.g. DSS 2025 class 6',
                     border: OutlineInputBorder(),
-                    helperText: 'Auto-filled from Grade + Section',
+                    helperText: 'Type the exact section name to display',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -550,7 +540,14 @@ class _ClassSectionsScreenState extends State<ClassSectionsScreen> {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final docs = snap.data?.docs ?? [];
+          final allDocs = snap.data?.docs ?? [];
+          // Hide empty-sectionId placeholder duplicates (e.g. "6-A" next to the
+          // real "DSS 2025 class 6"). Firestore is untouched — display only.
+          final realGrades =
+              gradesWithRealSection(allDocs.map((d) => d.data()));
+          final docs = allDocs
+              .where((d) => !isHiddenDuplicateSection(d.data(), realGrades))
+              .toList();
           if (docs.isEmpty) {
             return Center(
               child: Column(

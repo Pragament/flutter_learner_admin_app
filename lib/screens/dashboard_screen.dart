@@ -8,6 +8,7 @@ import 'create_school_screen.dart';
 import 'import_students_screen.dart';
 import 'staff_management_screen.dart';
 import 'students_list_screen.dart';
+import '../utils/section_utils.dart';
 
 class DashboardScreen extends StatelessWidget {
   DashboardScreen({super.key});
@@ -84,6 +85,49 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
+/// Counts a school's students using the section relationship as the source of
+/// truth (matches StudentsListScreen). A student is counted if their sectionId
+/// resolves to one of this school's sections, or if they carry this school's
+/// schoolCode. De-duplicated by document id so no student is double-counted.
+Future<int> _countSchoolStudents(FirebaseFirestore db, School school) async {
+  final seen = <String>{};
+  final knownSectionIds = <String>{};
+
+  final sectionsSnap = await db
+      .collection('schools')
+      .doc(school.docId)
+      .collection('classSections')
+      .get();
+
+  for (final s in sectionsSnap.docs) {
+    final sectionId = s.data()['sectionId']?.toString() ?? '';
+    if (sectionId.isEmpty) continue;
+    knownSectionIds.add(sectionId);
+    final q = await db
+        .collection('students')
+        .where('sectionId', isEqualTo: sectionId)
+        .get();
+    for (final d in q.docs) {
+      seen.add(d.id);
+    }
+  }
+
+  if (school.schoolCode.isNotEmpty) {
+    final schoolStudents = await db
+        .collection('students')
+        .where('schoolCode', isEqualTo: school.schoolCode)
+        .get();
+    for (final d in schoolStudents.docs) {
+      final sid = d.data()['sectionId']?.toString() ?? '';
+      if (sid.isEmpty || !knownSectionIds.contains(sid)) {
+        seen.add(d.id);
+      }
+    }
+  }
+
+  return seen.length;
+}
+
 class _SchoolCard extends StatelessWidget {
   final School school;
   const _SchoolCard({required this.school});
@@ -123,20 +167,27 @@ class _SchoolCard extends StatelessWidget {
                                 .collection('classSections')
                                 .snapshots(),
                             builder: (context, snap) {
-                              final count = snap.data?.docs.length ?? 0;
+                              final all = snap.data?.docs ?? [];
+                              // Count visible sections only (hide empty-sectionId
+                              // duplicates), matching the Class Sections page.
+                              final realGrades = gradesWithRealSection(all.map(
+                                  (d) => d.data() as Map<String, dynamic>));
+                              final count = all
+                                  .where((d) => !isHiddenDuplicateSection(
+                                      d.data() as Map<String, dynamic>,
+                                      realGrades))
+                                  .length;
                               return _Badge('$count sections', Colors.teal);
                             },
                           ),
                           const SizedBox(width: 6),
-                          // Live student count
-                          StreamBuilder<QuerySnapshot>(
-                            stream: db
-                                .collection('students')
-                                .where('schoolCode',
-                                isEqualTo: school.schoolCode)
-                                .snapshots(),
+                          // Student count via the same source of truth as the
+                          // Students / Class Sections pages (student.sectionId →
+                          // section.sectionId, plus schoolCode-only fallbacks).
+                          FutureBuilder<int>(
+                            future: _countSchoolStudents(db, school),
                             builder: (context, snap) {
-                              final count = snap.data?.docs.length ?? 0;
+                              final count = snap.data ?? 0;
                               return _Badge('$count students', Colors.green);
                             },
                           ),

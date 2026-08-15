@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/school.dart';
+import '../utils/section_utils.dart';
 
 class StudentsListScreen extends StatefulWidget {
   final School school;
@@ -22,17 +23,15 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
     _loadData();
   }
 
+  /// Uses the SAME source of truth as the Class Sections page:
+  /// a student belongs to a section when student.sectionId equals the
+  /// classSection document's `sectionId` field. Section names come straight
+  /// from the Firestore classSections documents (`fullName`) and are never
+  /// reconstructed or generated (no "6-A" guessing).
   Future<void> _loadData() async {
     setState(() => _loading = true);
 
-    // Load students
-    final studentsSnap = await _db
-        .collection('students')
-        .where('schoolCode', isEqualTo: widget.school.schoolCode)
-        .get();
-    _allStudents = studentsSnap.docs.map((d) => d.data()).toList();
-
-    // Load classSections ordered by grade then section
+    // Source of truth: this school's own classSections documents.
     final sectionsSnap = await _db
         .collection('schools')
         .doc(widget.school.docId)
@@ -40,52 +39,108 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
         .get();
     final sections = sectionsSnap.docs.map((d) => d.data()).toList();
 
-    // Sort sections by grade then section letter
+    // Sort by grade then section letter (mirrors the Class Sections ordering).
     sections.sort((a, b) {
       final gradeA = int.tryParse(a['grade']?.toString() ?? '0') ?? 0;
       final gradeB = int.tryParse(b['grade']?.toString() ?? '0') ?? 0;
       if (gradeA != gradeB) return gradeA.compareTo(gradeB);
-      return (a['section'] ?? '').compareTo(b['section'] ?? '');
+      return (a['section'] ?? '')
+          .toString()
+          .compareTo((b['section'] ?? '').toString());
     });
 
-    // Build grouped map with section fullName as key
     final grouped = <String, List<Map<String, dynamic>>>{};
+    final knownSectionIds = <String>{};
+    final seenDocIds = <String>{};
+
+    // Hide the same empty-sectionId duplicate placeholders the Class Sections
+    // page hides, so both pages show an identical section list.
+    final realGrades = gradesWithRealSection(sections);
+
+    // Group students under each real Firestore section, using the exact same
+    // query the Class Sections page uses (by sectionId, with a grade/classSection
+    // fallback for sections that have no sectionId).
     for (final s in sections) {
-      final key = s['fullName']?.toString() ?? '';
-      if (key.isNotEmpty) grouped[key] = [];
+      if (isHiddenDuplicateSection(s, realGrades)) continue;
+      final fullName = s['fullName']?.toString() ?? '';
+      if (fullName.isEmpty) continue;
+      final sectionId = s['sectionId']?.toString() ?? '';
+      final grade = s['grade']?.toString() ?? '';
+      final section = s['section']?.toString() ?? '';
+      if (sectionId.isNotEmpty) knownSectionIds.add(sectionId);
+
+      final snap = await _studentsForSection(sectionId, grade, section);
+      final list = <Map<String, dynamic>>[];
+      for (final doc in snap.docs) {
+        if (seenDocIds.add(doc.id)) list.add(doc.data());
+      }
+      grouped[fullName] = list;
     }
-    grouped['No Section'] = [];
 
-    for (final student in _allStudents) {
-      final grade = student['class']?.toString().trim() ?? '';
-      final classSection = student['classSection']?.toString().trim().toUpperCase() ?? '';
-
-      String? matchKey;
-
-      // Match by grade + classSection → fullName "4-A"
-      if (grade.isNotEmpty && classSection.isNotEmpty) {
-        final expected = '$grade-$classSection';
-        if (grouped.containsKey(expected)) {
-          matchKey = expected;
+    // "No Section" is a UI fallback ONLY — never a Firestore section.
+    // It holds students who belong to this school (by schoolCode) but whose
+    // sectionId does not resolve to any of this school's sections.
+    final noSection = <Map<String, dynamic>>[];
+    final code = widget.school.schoolCode;
+    if (code.isNotEmpty) {
+      final schoolStudentsSnap = await _db
+          .collection('students')
+          .where('schoolCode', isEqualTo: code)
+          .get();
+      for (final doc in schoolStudentsSnap.docs) {
+        if (seenDocIds.contains(doc.id)) continue;
+        final data = doc.data();
+        final sid = data['sectionId']?.toString() ?? '';
+        if (sid.isEmpty || !knownSectionIds.contains(sid)) {
+          noSection.add(data);
+          seenDocIds.add(doc.id);
         }
       }
-
-      // If no match found, put in No Section
-      grouped[matchKey ?? 'No Section']!.add(student);
     }
+    if (noSection.isNotEmpty) grouped['No Section'] = noSection;
 
-    if (grouped['No Section']!.isEmpty) {
-      grouped.remove('No Section');
-    }
+    final all = grouped.values.expand((l) => l).toList();
 
     setState(() {
       _grouped = grouped;
+      _allStudents = all;
       _loading = false;
     });
   }
 
+  /// One-shot equivalent of ClassSectionsScreen._buildStudentQuery so both
+  /// pages resolve students identically.
+  Future<QuerySnapshot<Map<String, dynamic>>> _studentsForSection(
+      String sectionId, String grade, String section) {
+    if (sectionId.isNotEmpty) {
+      // Primary link — identical to the Class Sections page. No schoolCode
+      // filter, because sectionId is globally unique.
+      return _db
+          .collection('students')
+          .where('sectionId', isEqualTo: sectionId)
+          .get();
+    }
+    // Fallback for sections with no sectionId (e.g. manually added sections).
+    final base = _db
+        .collection('students')
+        .where('schoolCode', isEqualTo: widget.school.schoolCode);
+    if (grade.isNotEmpty && section.isNotEmpty) {
+      return base
+          .where('class', isEqualTo: grade)
+          .where('classSection', isEqualTo: section.toUpperCase())
+          .get();
+    } else if (grade.isNotEmpty) {
+      return base.where('class', isEqualTo: grade).get();
+    }
+    return base.get();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Count only real Firestore sections; "No Section" is a fallback, not a section.
+    final realSectionCount =
+        _grouped.keys.where((k) => k != 'No Section').length;
+    final noSectionStudents = _grouped['No Section']?.length ?? 0;
     return Scaffold(
       appBar: AppBar(
         title: Text('Students — ${widget.school.schoolCode}'),
@@ -117,12 +172,37 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
               : ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        '${_allStudents.length} total students'
-                        ' across ${_grouped.length} section(s)',
-                        style: const TextStyle(color: Colors.grey),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.groups, color: Colors.indigo.shade700),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('${_allStudents.length} total students',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.indigo.shade700)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$realSectionCount Firestore section(s)'
+                                  '${noSectionStudents > 0 ? '  •  $noSectionStudents unassigned' : ''}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     ..._grouped.entries.map((entry) => _SectionTable(
