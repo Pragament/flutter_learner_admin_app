@@ -68,8 +68,17 @@ class AdminFirestoreService {
     // Set schoolId to the Firestore doc id
     await schoolRef.update({'schoolId': schoolRef.id});
 
-    // Add creator to staff subcollection
-    await schoolRef.collection('staff').add({
+    // Reverse-index schoolCode -> schoolId. The parent app's Firestore
+    // Security Rules need this to resolve a schoolCode to a doc path in
+    // a single get() (rules can't run a `where` query), so a Teacher/
+    // Admin's school access can actually be scoped server-side, not just
+    // trusted from the client's own query.
+    await _db.collection('schoolCodes').doc(code).set({'schoolId': schoolRef.id});
+
+    // Add creator to staff subcollection, keyed by email (not an
+    // auto-generated ID) so it can be looked up by exact path — same
+    // reason as the schoolCodes index above.
+    await schoolRef.collection('staff').doc(email).set({
       'email': email,
       'displayName': displayName,
       'uid': uid,
@@ -121,8 +130,8 @@ class AdminFirestoreService {
       return null; // success
     }
 
-    // Add to staff
-    await schoolRef.collection('staff').add({
+    // Add to staff, keyed by email (see createSchool for why).
+    await schoolRef.collection('staff').doc(email).set({
       'email': email,
       'displayName': displayName,
       'uid': uid,
@@ -230,11 +239,16 @@ class AdminFirestoreService {
 
         if (existing.docs.isNotEmpty) {
           if (overwriteExisting) {
+            // Update ALL fields from the CSV — not just name/phone —
+            // so re-imports always fix stale data (e.g. missing classSection
+            // from students imported before that field existed).
             await existing.docs.first.reference.update({
               'name': row.name.trim(),
               'phoneNumber': row.phoneNumber.trim(),
               'rollNo': row.rollNo.trim(),
               'class': row.studentClass.trim(),
+              'classSection': row.classSection.trim(),
+              'sectionId': row.sectionId.trim(),
             });
             updated++;
           } else {

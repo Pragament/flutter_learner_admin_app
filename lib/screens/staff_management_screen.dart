@@ -47,7 +47,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       }
 
       final inviterEmail = _auth.currentUser?.email ?? '';
-      await _staffRef.add({
+      // Keyed by email, not an auto-generated ID, so the parent app's
+      // Firestore Security Rules can look up a staff record by exact
+      // path (rules can't run a `where` query).
+      await _staffRef.doc(email).set({
         'email': email,
         'displayName': '',
         'uid': '',
